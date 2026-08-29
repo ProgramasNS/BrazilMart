@@ -21,5 +21,8 @@ def create_product(dto: ProductDTO, user: TokenPayload = Depends(verify_token)):
       try:
         s.add(Product(name=dto.name, price=dto.price, creatorId=user.id))
         s.commit()
-      except()
+      except Exception as err:
+        s.rollback()
+        print(f'Error: {err}')
+        return {'message': 'Something went wrong'}
       
