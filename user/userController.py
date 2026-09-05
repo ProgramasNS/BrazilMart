@@ -1,5 +1,5 @@
-from fastapi import APIRouter, HTTPException, status
-from auth.auth import create_token
+from fastapi import APIRouter, Depends, HTTPException, status
+from auth.auth import TokenPayload, create_token, verify_token
 from user.userDTO import UserDTO, UserRegisterResponse
 from user.userModel import User
 from database.service import session
@@ -38,10 +38,8 @@ async def signup(dto: UserDTO):
             s.commit()
             s.refresh(new_user)
             return new_user
-        except Exception as err:
-            s.rollback()
-            print(f"Error: {err}")
-            return {'message': 'Something went wrong'}
+        except Exception:
+            raise Exception()
 
 @router.post('/login')
 async def login(dto: UserDTO):
@@ -55,16 +53,47 @@ async def login(dto: UserDTO):
         exists = s.execute(existsBase).scalar_one_or_none()
         if not exists:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found!"
-            )
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found!"
+        )
         correctPassword = bcrypt.checkpw(dto.password.encode("utf-8"), exists.password.encode("utf-8"))
         if not correctPassword:
             raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Incorrect password!"
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Incorrect password!"
             )
         token = create_token({"sub": exists.nickname})
         return { "token": token }
 
+@router.patch('/', response_model=UserRegisterResponse)
+async def change_profile(dto: UserRegisterResponse, user: TokenPayload = Depends(verify_token)):
+    userBase = select(User).where(User.id == user.id)
+    nickBase = select(User).where(User.nickname == user.nickname)
+    with session() as s:
+        userAuth = s.execute(userBase).scalar_one_or_none()
+        nickExists = s.execute(nickBase).scalar_one_or_none()
+        if not userAuth:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="You must")
+        
+        userAuth.nickname = dto.nickname 
+        userAuth.email = dto.email
+        userAuth.name = dto.name
+        userAuth.role = Role(dto.role.upper())
+        s.commit()
+        s.refresh(userAuth)
+        return userAuth
 
+@router.patch('/delete')
+def delete_user(user: TokenPayload = Depends(verify_token)):
+    userBase = select(User).where(User.id == user.id)
+    with session() as s:
+        userAuth = s.execute(userBase).scalar_one_or_none()
+        if not userAuth:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, 
+                detail="You aren't authenticated!"
+            )
+        userAuth.nickname = f"inative_user_{user.id}"
+        userAuth.email = f"removed_user_{user.id}@inativeemail.com"
+        userAuth.name = f"Inative User {user.id}"
+        userAuth.password = "INVALID_PASSWORD"
