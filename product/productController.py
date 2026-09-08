@@ -11,7 +11,7 @@ router = APIRouter(
     tags=['product']
 )
 
-@router.post('/', response_model=ProductDTO)
+@router.post('/', status_code=201, response_model=ProductDTO)
 async def create_product(dto: ProductDTO, user: TokenPayload = Depends(verify_token)):
     if not user.id:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="You aren't authenticated!")

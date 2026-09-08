@@ -6,6 +6,7 @@ from database.service import session
 import bcrypt
 from user.userModel import Role
 from sqlalchemy import select
+from pyisemail import is_email
 
 
 router = APIRouter(
@@ -28,6 +29,11 @@ async def signup(dto: UserDTO):
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
                     detail="User already exists!"
+                )
+            if not is_email(dto.email):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Only valid e-mails!"
                 )
             role = Role(Role.BUYER)
             if dto.role.upper() == 'SELLER':
@@ -83,7 +89,7 @@ async def change_profile(dto: UserRegisterResponse, user: TokenPayload = Depends
         s.refresh(userAuth)
         return userAuth
 
-@router.patch('/delete')
+@router.delete('/delete')
 def delete_user(user: TokenPayload = Depends(verify_token)):
     userBase = select(User).where(User.id == user.id)
     with session() as s:
@@ -97,3 +103,6 @@ def delete_user(user: TokenPayload = Depends(verify_token)):
         userAuth.email = f"removed_user_{user.id}@inativeemail.com"
         userAuth.name = f"Inative User {user.id}"
         userAuth.password = "INVALID_PASSWORD"
+        s.commit()
+        s.refresh(userAuth)
+        return {'message': 'User sucessful deleted!'}
