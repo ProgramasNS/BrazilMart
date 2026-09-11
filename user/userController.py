@@ -106,3 +106,7 @@ def delete_user(user: TokenPayload = Depends(verify_token)):
         s.commit()
         s.refresh(userAuth)
         return {'message': 'User sucessful deleted!'}
+
+@router.get('/')
+def shopping_cart(user: TokenPayload = Depends(verify_token)):
+    return {}

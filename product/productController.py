@@ -35,7 +35,7 @@ async def get_products():
     return s.execute(productsBase).fetchall()
 
 @router.get('/{id}', response_model=ProductDTO)
-async def get_products_by_seller(id: int):
+async def get_products_by_seller(id: str):
    productsBase = select(Product).where(Product.creatorId == id)
    with session() as s:
     return s.execute(productsBase).fetchall()
@@ -69,7 +69,7 @@ async def update_product(dto: ProductDTO, id: int, user: TokenPayload = Depends(
     return product
 
 @router.delete('/{id}')
-async def delete_product(id: int, user: TokenPayload = Depends(verify_token)):
+async def delete_product(id: str, user: TokenPayload = Depends(verify_token)):
    productBase = select(Product).where(Product.id == id)
    with session() as s:
     product = s.execute(productBase).scalar_one_or_none()
